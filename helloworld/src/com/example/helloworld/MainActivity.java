@@ -1,14 +1,33 @@
 package com.example.helloworld;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpResponse;
+import org.apache.http.NameValuePair;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.entity.UrlEncodedFormEntity;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.message.BasicNameValuePair;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import android.media.MediaPlayer;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.app.Activity;
@@ -44,6 +63,8 @@ public class MainActivity extends Activity {
 	public int windowHeight = 0;
 	public String folderPath = "";
 	
+	MediaPlayer mediaPlayer;
+	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -62,10 +83,8 @@ public class MainActivity extends Activity {
 		windowWidth = size.x;
 		windowHeight = size.y;
 		
-		if (android.os.Build.VERSION.SDK_INT > 9) {
-		    StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
-		    StrictMode.setThreadPolicy(policy);
-		}
+	    StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
+	    StrictMode.setThreadPolicy(policy);
 		//----------detect device setting and adapt environment
 		
 		myGallery = (LinearLayout)findViewById(R.id.mygallery);
@@ -80,8 +99,129 @@ public class MainActivity extends Activity {
 		myGallery.addView(insertPhoto("https://fbcdn-sphotos-h-a.akamaihd.net/hphotos-ak-snc7/3848_103739568274_4370004_n.jpg"));
 	
 		//myGalleryParent.scrollTo(200, 0);
-		Toast.makeText(getApplicationContext(), String.valueOf(myGallery.getChildCount()) , Toast.LENGTH_LONG).show();
+		
+		//-------load JSON
+		List<NameValuePair> nameValuePairs = new ArrayList<NameValuePair>(2);
+        nameValuePairs.add(new BasicNameValuePair("name", "MAMAMA"));
         
+		JSONObject json = getJSONfromURL("http://10.0.2.2/jsontry.php?name=HAHAHA", nameValuePairs);
+		try {
+			JSONArray  jsoncontacts = json.getJSONArray("contacts");
+					
+				for(int i=0;i < jsoncontacts.length();i++){						
+			
+			        	JSONObject e = jsoncontacts.getJSONObject(i);
+			        	
+			        	Toast.makeText(getApplicationContext(), e.getString("name") , Toast.LENGTH_LONG).show();
+				}
+			
+		} catch (JSONException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		//-------load JSON
+		
+		//Toast.makeText(getApplicationContext(), String.valueOf(myGallery.getChildCount()) , Toast.LENGTH_LONG).show();
+        
+		//-------create and load background song
+		mediaPlayer = MediaPlayer.create(
+		    this,
+		    Uri.parse("http://translate.google.com/translate_tts?tl=en&q=%22hello%20world%20pon%20pon%20pon%20ha%22"));
+		mediaPlayer.start();
+		mediaPlayer.setLooping(true);
+		//-------create and load background song
+	}
+	
+	public static JSONObject getJSONfromURL(String url,List<NameValuePair> postDatas ){
+
+		//initialize
+		InputStream is = null;
+		String result = "";
+		JSONObject jArray = null;
+
+		//http post
+		try{
+			HttpClient httpclient = new DefaultHttpClient();
+			HttpPost httppost = new HttpPost(url);
+			
+	        httppost.setEntity(new UrlEncodedFormEntity(postDatas));
+			
+			HttpResponse response = httpclient.execute(httppost);
+			HttpEntity entity = response.getEntity();
+			is = entity.getContent();
+
+		}catch(Exception e){
+			Log.e("log_tag", "Error in http connection "+e.toString());
+		}
+
+		//convert response to string
+		try{
+			BufferedReader reader = new BufferedReader(new InputStreamReader(is,"iso-8859-1"),8);
+			StringBuilder sb = new StringBuilder();
+			String line = null;
+			while ((line = reader.readLine()) != null) {
+				sb.append(line + "\n");
+			}
+			is.close();
+			result=sb.toString();
+		}catch(Exception e){
+			Log.e("log_tag", "Error converting result "+e.toString());
+		}
+
+		//try parse the string to a JSON object
+		try{
+	        	jArray = new JSONObject(result);
+		}catch(JSONException e){
+			Log.e("log_tag", "Error parsing data "+e.toString());
+		}
+
+		return jArray;
+	} 
+
+	
+	@Override
+	protected void onDestroy() {Log.v("IMAGESIZE","DESTROY");
+		mediaPlayer.reset();
+		mediaPlayer.release();
+		
+		super.onDestroy();
+	}
+	
+	@Override
+	protected void onStop() {Log.v("IMAGESIZE","STOP");
+		if(mediaPlayer.isPlaying()){
+			mediaPlayer.pause();
+		}
+		
+		super.onStop();
+	}
+	
+	@Override
+	protected void onPause() {Log.v("IMAGESIZE","PAUSE");
+		if(mediaPlayer.isPlaying()){
+			mediaPlayer.pause();
+		}
+		
+		super.onPause();
+	}
+	
+	@Override
+	protected void onResume() {Log.v("IMAGESIZE","RESUME");
+		try {
+			mediaPlayer.prepare();
+		} catch (IllegalStateException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		if(!mediaPlayer.isPlaying()){
+			mediaPlayer.start();
+		}
+		
+		super.onResume();
 	}
 
 	View insertPhoto(String imgUrl){
